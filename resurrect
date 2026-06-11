@@ -1,16 +1,29 @@
 #!/usr/bin/env bash
-# resurrect — print + copy the command to resume the CURRENT Claude Code session.
+# resurrect — print + copy the command to resume the CURRENT AI-CLI session.
+# Detects the CLI via its session-id env var and the OS via uname. Works in
+# Claude Code, OpenAI Codex, and Google Antigravity, on Windows Git Bash and WSL.
 
+# Where to cd back to (the only Win-vs-WSL difference) — derived, no hardcoded user.
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) home="cd $(cygpath -w "$HOME")" ;;  # Windows Git Bash -> cd C:\Users\<you>
     *)                    home='cd ~' ;;                       # WSL / Linux
 esac
 
-if [ -z "$CLAUDE_CODE_SESSION_ID" ]; then
-    printf 'resurrect: CLAUDE_CODE_SESSION_ID not set - run inside a Claude Code session.\n' >&2
+# Which CLI? First matching session-id env var wins (priority order).
+if   [ -n "$CLAUDE_CODE_SESSION_ID" ];      then resume="claude -r $CLAUDE_CODE_SESSION_ID"
+elif [ -n "$CODEX_THREAD_ID" ];             then resume="codex resume $CODEX_THREAD_ID"
+elif [ -n "$ANTIGRAVITY_CONVERSATION_ID" ]; then resume="agy --conversation=$ANTIGRAVITY_CONVERSATION_ID"
+else
+    printf 'resurrect: no AI-CLI session id found.\n  Need CLAUDE_CODE_SESSION_ID, CODEX_THREAD_ID, or ANTIGRAVITY_CONVERSATION_ID.\n  (Antigravity sets its id only in the agent shell - ask the agent to run resurrect.)\n' >&2
     exit 1
 fi
 
-cmd="$home && claude -r $CLAUDE_CODE_SESSION_ID"
-printf '%s' "$cmd" | clip.exe
+cmd="$home && $resume"
+
+# Clipboard: clip.exe on Windows/WSL; graceful fallbacks elsewhere.
+if   command -v clip.exe >/dev/null 2>&1; then printf '%s' "$cmd" | clip.exe
+elif command -v xclip    >/dev/null 2>&1; then printf '%s' "$cmd" | xclip -selection clipboard
+elif command -v wl-copy  >/dev/null 2>&1; then printf '%s' "$cmd" | wl-copy
+elif command -v pbcopy   >/dev/null 2>&1; then printf '%s' "$cmd" | pbcopy
+fi
 printf '%s\n' "$cmd"
