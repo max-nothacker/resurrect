@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# resurrect — print + copy the command to resume the CURRENT Claude Code session.
+
+case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*) home="cd $(cygpath -w "$HOME")" ;;  # Windows Git Bash -> cd C:\Users\<you>
+    *)                    home='cd ~' ;;                       # WSL / Linux
+esac
+
+if [ -z "$CLAUDE_CODE_SESSION_ID" ]; then
+    printf 'resurrect: CLAUDE_CODE_SESSION_ID not set - run inside a Claude Code session.\n' >&2
+    exit 1
+fi
+
+cmd="$home && claude -r $CLAUDE_CODE_SESSION_ID"
+printf '%s' "$cmd" | clip.exe
+printf '%s\n' "$cmd"
