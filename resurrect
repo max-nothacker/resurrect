@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # resurrect — print + copy the command to resume the CURRENT AI-CLI session.
-# Detects the CLI via its session-id env var and the OS via uname. Works in
-# Claude Code, OpenAI Codex, and Google Antigravity, on Windows Git Bash and WSL.
+# Detects the CLI via its session-id env var and the OS via $OSTYPE (no subprocess,
+# so it stays fast on Windows). Works in Claude Code, OpenAI Codex, and Google
+# Antigravity, on Windows Git Bash and WSL.
 
-# Where to cd back to (the only Win-vs-WSL difference) — derived, no hardcoded user.
-case "$(uname -s)" in
-    MINGW*|MSYS*|CYGWIN*) home="cd $(cygpath -w "$HOME")" ;;  # Windows Git Bash -> cd C:\Users\<you>
-    *)                    home='cd ~' ;;                       # WSL / Linux
+case "$OSTYPE" in
+    msys*|cygwin*|win*) home="cd ${USERPROFILE:-$HOME}" ;;  # Windows Git Bash -> cd C:\Users\<you>
+    *)                  home='cd ~' ;;                       # WSL / Linux / macOS
 esac
 
 # Which CLI? First matching session-id env var wins (priority order).

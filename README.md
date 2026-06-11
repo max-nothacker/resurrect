@@ -20,8 +20,7 @@ variable, and emits that CLI's resume command:
 | OpenAI Codex | `CODEX_THREAD_ID` | `codex resume <id>` |
 | Google Antigravity | `ANTIGRAVITY_CONVERSATION_ID` | `agy --conversation=<id>` |
 
-It also auto-detects the OS — Windows Git Bash (`cd C:\Users\you`) vs WSL/Linux
-(`cd ~`) — so one script works everywhere.
+It also auto-detects the OS — Windows (`cd C:\Users\you`) vs WSL/Linux (`cd ~`).
 
 ### Antigravity note
 
@@ -34,23 +33,39 @@ environment.
 
 ```bash
 git clone https://github.com/max-nothacker/resurrect.git ~/repos/resurrect
-ln -s ~/repos/resurrect/resurrect ~/.local/bin/resurrect   # once per environment
+ln -s ~/repos/resurrect/resurrect ~/.local/bin/resurrect   # WSL / Linux / macOS / Git Bash
 ```
 
-Do this in each environment you use (Windows Git Bash and WSL each have their own
-`~/.local/bin`; both can symlink the same file).
+### Windows
+
+Different CLIs use different `!` shells on Windows: **Claude Code** runs Git Bash
+(the script above), while **Codex** and **Antigravity** use PowerShell/cmd, which
+can't execute a bash script. For those, also install the `.cmd` shim and put
+`~/.local/bin` on your Windows PATH:
+
+```bash
+ln -s ~/repos/resurrect/resurrect.cmd ~/.local/bin/resurrect.cmd
+```
+```powershell
+# PowerShell, once — add %USERPROFILE%\.local\bin to your User PATH:
+[Environment]::SetEnvironmentVariable('PATH',
+  [Environment]::GetEnvironmentVariable('PATH','User') + ';' + "$env:USERPROFILE\.local\bin", 'User')
+```
+
+`resurrect.cmd` holds **no logic** — it just re-runs the bash `resurrect` via Git
+Bash, keeping a single source of truth.
 
 ## Update / uninstall
 
 ```bash
-git -C ~/repos/resurrect pull     # update — the symlink serves the new version at once
-rm ~/.local/bin/resurrect         # uninstall
+git -C ~/repos/resurrect pull                          # update (symlinks serve it at once)
+rm ~/.local/bin/resurrect ~/.local/bin/resurrect.cmd   # uninstall
 ```
 
 ## Requirements
 
-A clipboard tool: `clip.exe` (present on Windows/WSL, used automatically) — falls back
-to `xclip`, `wl-copy`, or `pbcopy` if available.
+Git Bash (for the Windows `.cmd` shim) and a clipboard tool: `clip.exe` on
+Windows/WSL (used automatically), falling back to `xclip`, `wl-copy`, or `pbcopy`.
 
 ## License
 
