@@ -4,10 +4,12 @@ Print + copy the command to **resume the current AI-CLI session**. Run it inside
 session and it prints — and copies to your clipboard — a ready-to-paste command like:
 
 ```
-cd C:\Users\you && claude -r <session-id>
+cd "C:\Users\you\my-project" && claude -r <session-id>
 ```
 
-Open a fresh terminal later, paste, and the session revives.
+Open a fresh terminal later, paste, and the session revives. The `cd` targets **the
+directory the session was started in** — AI-CLI sessions are scoped to their working
+directory, so resuming from anywhere else fails with "No conversation found".
 
 ## Supported CLIs
 
@@ -20,7 +22,9 @@ variable, and emits that CLI's resume command:
 | OpenAI Codex | `CODEX_THREAD_ID` | `codex resume <id>` |
 | Google Antigravity | `ANTIGRAVITY_CONVERSATION_ID` | `agy --conversation=<id>` |
 
-It also auto-detects the OS — Windows (`cd C:\Users\you`) vs WSL/Linux (`cd ~`).
+It also auto-detects the OS, emitting a Windows path (`cd "C:\..."`) in Git Bash vs a
+POSIX path (`cd "/home/..."`) in WSL/Linux — always pointing at the session's own
+working directory.
 
 ### Antigravity note
 
@@ -66,6 +70,13 @@ rm ~/.local/bin/resurrect ~/.local/bin/resurrect.cmd   # uninstall
 
 Git Bash (for the Windows `.cmd` shim) and a clipboard tool: `clip.exe` on
 Windows/WSL (used automatically), falling back to `xclip`, `wl-copy`, or `pbcopy`.
+
+## Verify
+
+`bash verify.sh` proves the emitted command actually works: it creates a throwaway
+Claude session, runs `resurrect`, then resumes from the emitted directory (must
+succeed) **and** from `$HOME` (must fail) — catching the directory-scoping bug that a
+string check alone would miss. Run it in Git Bash and in WSL.
 
 ## License
 

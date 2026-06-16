@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # resurrect — print + copy the command to resume the CURRENT AI-CLI session.
-# Detects the CLI via its session-id env var and the OS via $OSTYPE (no subprocess,
-# so it stays fast on Windows). Works in Claude Code, OpenAI Codex, and Google
-# Antigravity, on Windows Git Bash and WSL.
+# Detects the CLI via its session-id env var. AI-CLI sessions are scoped to the
+# directory they were started in, so we cd back to THIS directory ($PWD) — not
+# $HOME — or `<cli> resume <id>` won't find the session. Works in Claude Code,
+# OpenAI Codex, and Google Antigravity, on Windows Git Bash and WSL.
 
 case "$OSTYPE" in
-    msys*|cygwin*|win*) home="cd ${USERPROFILE:-$HOME}" ;;  # Windows Git Bash -> cd C:\Users\<you>
-    *)                  home='cd ~' ;;                       # WSL / Linux / macOS
+    msys*|cygwin*|win*) dir="$(cygpath -w "$PWD")" ;;  # Windows Git Bash -> C:\Users\...
+    *)                  dir="$PWD" ;;                   # WSL / Linux / macOS
 esac
 
 # Which CLI? First matching session-id env var wins (priority order).
@@ -18,7 +19,7 @@ else
     exit 1
 fi
 
-cmd="$home && $resume"
+cmd="cd \"$dir\" && $resume"
 
 # Clipboard: clip.exe on Windows/WSL; graceful fallbacks elsewhere.
 if   command -v clip.exe >/dev/null 2>&1; then printf '%s' "$cmd" | clip.exe
