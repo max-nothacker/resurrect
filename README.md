@@ -59,6 +59,31 @@ ln -s ~/repos/resurrect/resurrect.cmd ~/.local/bin/resurrect.cmd
 `resurrect.cmd` holds **no logic** — it just re-runs the bash `resurrect` via Git
 Bash, keeping a single source of truth.
 
+## Markdown blame-trace
+
+`resurrect_blametrace.py` (beside `resurrect`, needs Python 3) stamps a deduped
+provenance entry into a Markdown file's YAML frontmatter, so you can later
+resurrect whichever session touched the note:
+
+```yaml
+blame_trace:
+  - {orchestrator: claude-code, session-id: <id>, cwd: '<dir>', timestamp: <iso>}
+```
+
+Manual: `resurrect --markdown <file>`. To stamp automatically in **Claude Code**,
+add a `PostToolUse` hook to `~/.claude/settings.json`:
+
+```json
+{ "hooks": { "PostToolUse": [ {
+  "matcher": "Write|Edit|MultiEdit",
+  "hooks": [ { "type": "command", "timeout": 10,
+    "command": "python -c \"import os,sys;d=os.path.expanduser('~/repos/resurrect');sys.path.insert(0,d);exec(open(os.path.join(d,'resurrect_blametrace.py'),encoding='utf-8').read())\"" } ] } ] } }
+```
+
+By default it only stamps notes inside an Obsidian vault (set `OBSIDIAN_ONLY = False`
+in the script for every `.md`), and skips files whose frontmatter has
+`llm_write: false` or `blame_trace: false`.
+
 ## Update / uninstall
 
 ```bash

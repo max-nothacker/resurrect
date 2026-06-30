@@ -4,6 +4,10 @@
 # directory they were started in, so we cd back to THIS directory ($PWD) — not
 # $HOME — or `<cli> resume <id>` won't find the session. Works in Claude Code,
 # OpenAI Codex, and Google Antigravity, on Windows Git Bash and WSL.
+#
+# `resurrect --markdown <file>` instead stamps a blame_trace entry into <file>'s
+# YAML frontmatter (format owned by resurrect_blametrace.py — single source of
+# truth). The same writer runs automatically from the Claude Code PostToolUse hook.
 
 case "$OSTYPE" in
     msys*|cygwin*|win*) dir="$(cygpath -w "$PWD")" ;;  # Windows Git Bash -> C:\Users\...
@@ -11,12 +15,34 @@ case "$OSTYPE" in
 esac
 
 # Which CLI? First matching session-id env var wins (priority order).
-if   [ -n "$CLAUDE_CODE_SESSION_ID" ];      then resume="claude -r $CLAUDE_CODE_SESSION_ID"
-elif [ -n "$CODEX_THREAD_ID" ];             then resume="codex resume $CODEX_THREAD_ID"
-elif [ -n "$ANTIGRAVITY_CONVERSATION_ID" ]; then resume="agy --conversation=$ANTIGRAVITY_CONVERSATION_ID"
+if   [ -n "$CLAUDE_CODE_SESSION_ID" ];      then orch="claude-code";  sid="$CLAUDE_CODE_SESSION_ID";      resume="claude -r $sid"
+elif [ -n "$CODEX_THREAD_ID" ];             then orch="codex";        sid="$CODEX_THREAD_ID";             resume="codex resume $sid"
+elif [ -n "$ANTIGRAVITY_CONVERSATION_ID" ]; then orch="antigravity"; sid="$ANTIGRAVITY_CONVERSATION_ID"; resume="agy --conversation=$sid"
 else
     printf 'resurrect: no AI-CLI session id found.\n  Need CLAUDE_CODE_SESSION_ID, CODEX_THREAD_ID, or ANTIGRAVITY_CONVERSATION_ID.\n  (Antigravity sets its id only in the agent shell - ask the agent to run resurrect.)\n' >&2
     exit 1
+fi
+
+# --markdown <file>: stamp blame_trace into <file>; the Python core owns the format.
+if [ "$1" = "--markdown" ]; then
+    file="$2"
+    [ -z "$file" ] && { printf 'resurrect --markdown: needs a <file>.\n' >&2; exit 1; }
+    # Resolve this script's real directory (follow symlinks) to find the .py beside it.
+    src="${BASH_SOURCE[0]:-$0}"
+    while [ -h "$src" ]; do
+        sdir="$(cd -P "$(dirname "$src")" && pwd)"; src="$(readlink "$src")"
+        case "$src" in /*) ;; *) src="$sdir/$src" ;; esac
+    done
+    script_dir="$(cd -P "$(dirname "$src")" && pwd)"
+    py="$script_dir/resurrect_blametrace.py"
+    case "$OSTYPE" in
+        msys*|cygwin*|win*)                            # hand native Windows paths to python
+            py="$(cygpath -w "$py")"
+            file="$(cygpath -w "$file" 2>/dev/null || printf '%s' "$file")"
+            ;;
+    esac
+    python "$py" --file "$file" --session "$sid" --cwd "$dir" --orchestrator "$orch"
+    exit $?
 fi
 
 cmd="cd \"$dir\" && $resume"
